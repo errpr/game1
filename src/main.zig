@@ -116,22 +116,36 @@ pub fn main() !u8 {
     glDeleteShader(fragmentShaderId);
 
     var vertexBuffer = [_]f32 {
-        -0.5, -0.5, 0.0,
+         0.5,  0.5, 0.0,
          0.5, -0.5, 0.0,
-         0.0,  0.5, 0.0
+        -0.5, -0.5, 0.0,
+        -0.5,  0.5, 0.0
+    };
+
+    var indices = [_]GLuint {
+        0, 1, 3,
+        1, 2, 3
     };
 
     var vbo: u32 = undefined;
     glGenBuffers(1, &vbo);
     defer glDeleteBuffers(1, &vbo);
 
+    var ebo: u32 = undefined;
+    glGenBuffers(1, &ebo);
+    defer glDeleteBuffers(1, &ebo);
+
     var vao: u32 = undefined;
     glGenVertexArrays(1, &vao);
     defer glDeleteVertexArrays(1, &vao);
 
     glBindVertexArray(vao);
+
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, @sizeOf(@TypeOf(vertexBuffer)), &vertexBuffer, GL_STATIC_DRAW);   
+    glBufferData(GL_ARRAY_BUFFER, @sizeOf(@TypeOf(vertexBuffer)), &vertexBuffer, GL_STATIC_DRAW);
+    
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, @sizeOf(@TypeOf(indices)), &indices, GL_STATIC_DRAW);   
 
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * @sizeOf(f32), null);
     glEnableVertexAttribArray(0); 
@@ -152,7 +166,8 @@ pub fn main() !u8 {
 
         glUseProgram(shaderProgramId);
         glBindVertexArray(vao);
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, null);
+        glBindVertexArray(0);
         
         SDL_GL_SwapWindow(mainWindow);
     }
