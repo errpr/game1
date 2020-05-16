@@ -1,10 +1,12 @@
 usingnamespace @cImport({
     @cDefine("SDL_MAIN_HANDLED", "");
     @cInclude("SDL2/SDL.h");
-    @cInclude("glad/glad.h");
+    @cInclude("glad.h");
 });
 
 const std = @import("std");
+const DEFAULT_HEIGHT = 600;
+const DEFAULT_WIDTH = 800;
 
 pub fn main() !u8 {
 
@@ -15,7 +17,7 @@ pub fn main() !u8 {
         return 1;
     }
 
-    const mainWindow = SDL_CreateWindow("test", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 512, 512, SDL_WINDOW_OPENGL) orelse {
+    const mainWindow = SDL_CreateWindow("test", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, DEFAULT_WIDTH, DEFAULT_HEIGHT, SDL_WINDOW_OPENGL) orelse {
         std.debug.warn("Failed to create window: {}\n", .{SDL_GetError()});
         return 2;
     };
@@ -27,7 +29,7 @@ pub fn main() !u8 {
     
     if (SDL_GL_SetAttribute(.SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE) != 0
         or SDL_GL_SetAttribute(.SDL_GL_CONTEXT_MAJOR_VERSION, 3) != 0
-        or SDL_GL_SetAttribute(.SDL_GL_CONTEXT_MINOR_VERSION, 2) != 0
+        or SDL_GL_SetAttribute(.SDL_GL_CONTEXT_MINOR_VERSION, 3) != 0
         or SDL_GL_SetAttribute(.SDL_GL_DOUBLEBUFFER, 1) != 0) 
     {
         std.debug.warn("Failed to set initial GL attribute(s): {}\n", .{SDL_GetError()});
@@ -37,6 +39,7 @@ pub fn main() !u8 {
     if (gladLoadGL() == 0)
         return error.GladLoadGLFailed;
 
+    glViewport(0, 0, DEFAULT_WIDTH, DEFAULT_HEIGHT);
     glClearColor(0, 0, 0, 1);
     glClear(GL_COLOR_BUFFER_BIT);
     SDL_GL_SwapWindow(mainWindow);
@@ -56,12 +59,12 @@ pub fn main() !u8 {
                             SDL_GL_SwapWindow(mainWindow);
                         },
                         SDLK_g => {
-                            glClearColor(1, 0, 0, 1);
+                            glClearColor(0, 1, 0, 1);
                             glClear(GL_COLOR_BUFFER_BIT);
                             SDL_GL_SwapWindow(mainWindow);
                         },
                         SDLK_b => {
-                            glClearColor(1, 0, 0, 1);
+                            glClearColor(0, 0, 1, 1);
                             glClear(GL_COLOR_BUFFER_BIT);
                             SDL_GL_SwapWindow(mainWindow);
                         },
