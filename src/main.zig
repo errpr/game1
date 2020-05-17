@@ -7,7 +7,9 @@ usingnamespace @cImport({
 const std = @import("std");
 const panic = std.debug.panic;
 const builtin = @import("builtin");
-const c_allocator = std.heap.c_allocator;
+const math = std.math;
+
+usingnamespace @import("./shader.zig");
 
 // most people have at least a 720p monitor so this size window will fit on everyones screen.
 const DEFAULT_HEIGHT = 648;
@@ -59,108 +61,11 @@ pub fn main() !u8 {
     glClearColor(0, 0, 0, 1);
     glClear(GL_COLOR_BUFFER_BIT);
     SDL_GL_SwapWindow(mainWindow);
-    
-    const vertexShaderSource = @embedFile("vertexShader.glsl");
-    const vertexShaderSourcePointer: ?[*]const u8 = getPointerBecauseZigIsWeird(vertexShaderSource);
-    const vertexShaderSourceLen = @intCast(GLint, vertexShaderSource.len);
-    const vertexShaderId = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShaderId, 1, &vertexShaderSourcePointer, &vertexShaderSourceLen);
-    glCompileShader(vertexShaderId);
 
-    {
-        var success: i32 = 1;
-        glGetShaderiv(vertexShaderId, GL_COMPILE_STATUS, &success);
-        if (success == 0) {
-            var errorSize: GLint = undefined;
-            glGetShaderiv(vertexShaderId, GL_INFO_LOG_LENGTH, &errorSize);
-
-            const errorMessageBuffer = try c_allocator.alloc(u8, @intCast(usize, errorSize));
-            defer c_allocator.free(errorMessageBuffer);
-            glGetShaderInfoLog(vertexShaderId, errorSize, &errorSize, errorMessageBuffer.ptr);
-            std.debug.warn("ERROR::SHADER::VERTEX::COMPILATION_FAILED\n{}", .{errorMessageBuffer.ptr});
-        }
-    }
-    
-    const fragmentShaderSource = @embedFile("fragmentShader.glsl");
-    const fragmentShaderSourcePointer: ?[*]const u8 = getPointerBecauseZigIsWeird(fragmentShaderSource);
-    const fragmentShaderSourceLen = @intCast(GLint, fragmentShaderSource.len);
-    const fragmentShaderId = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShaderId, 1, &fragmentShaderSourcePointer, &fragmentShaderSourceLen);
-    glCompileShader(fragmentShaderId);
-    
-    {
-        var success: i32 = 1;
-        glGetShaderiv(fragmentShaderId, GL_COMPILE_STATUS, &success);
-        if (success == 0) {
-            var errorSize: GLint = undefined;
-            glGetShaderiv(fragmentShaderId, GL_INFO_LOG_LENGTH, &errorSize);
-
-            const errorMessageBuffer = try c_allocator.alloc(u8, @intCast(usize, errorSize));
-            defer c_allocator.free(errorMessageBuffer);
-            glGetShaderInfoLog(fragmentShaderId, errorSize, &errorSize, errorMessageBuffer.ptr);
-            std.debug.warn("ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n{}", .{errorMessageBuffer.ptr});
-        }
-    }    
-    const fragmentShaderSource2 = @embedFile("fragmentShader2.glsl");
-    const fragmentShaderSourcePointer2: ?[*]const u8 = getPointerBecauseZigIsWeird(fragmentShaderSource2);
-    const fragmentShaderSourceLen2 = @intCast(GLint, fragmentShaderSource2.len);
-    const fragmentShaderId2 = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShaderId2, 1, &fragmentShaderSourcePointer2, &fragmentShaderSourceLen2);
-    glCompileShader(fragmentShaderId2);
-    
-    {
-        var success: i32 = 1;
-        glGetShaderiv(fragmentShaderId2, GL_COMPILE_STATUS, &success);
-        if (success == 0) {
-            var errorSize: GLint = undefined;
-            glGetShaderiv(fragmentShaderId2, GL_INFO_LOG_LENGTH, &errorSize);
-
-            const errorMessageBuffer = try c_allocator.alloc(u8, @intCast(usize, errorSize));
-            defer c_allocator.free(errorMessageBuffer);
-            glGetShaderInfoLog(fragmentShaderId2, errorSize, &errorSize, errorMessageBuffer.ptr);
-            std.debug.warn("ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n{}", .{errorMessageBuffer.ptr});
-        }
-    }
-
-    const shaderProgramId = glCreateProgram();
-    glAttachShader(shaderProgramId, vertexShaderId);
-    glAttachShader(shaderProgramId, fragmentShaderId);
-    glLinkProgram(shaderProgramId);
-    {
-        var success: i32 = 1;
-        glGetProgramiv(shaderProgramId, GL_LINK_STATUS, &success);
-        if (success == 0) {
-            var errorSize: GLint = undefined;
-            glGetProgramiv(shaderProgramId, GL_INFO_LOG_LENGTH, &errorSize);
-            const errorMessageBuffer = try c_allocator.alloc(u8, @intCast(usize, errorSize));
-            defer c_allocator.free(errorMessageBuffer);
-            glGetProgramInfoLog(shaderProgramId, errorSize, &errorSize, errorMessageBuffer.ptr);
-            std.debug.warn("ERROR::SHADER::PROGRAM::LINK_FAILED\n{}", .{errorMessageBuffer.ptr});
-        }
-    }
-    defer glDeleteProgram(shaderProgramId);
-
-    const shaderProgramId2 = glCreateProgram();
-    glAttachShader(shaderProgramId2, vertexShaderId);
-    glAttachShader(shaderProgramId2, fragmentShaderId2);
-    glLinkProgram(shaderProgramId2);
-    {
-        var success: i32 = 1;
-        glGetProgramiv(shaderProgramId2, GL_LINK_STATUS, &success);
-        if (success == 0) {
-            var errorSize: GLint = undefined;
-            glGetProgramiv(shaderProgramId2, GL_INFO_LOG_LENGTH, &errorSize);
-            const errorMessageBuffer = try c_allocator.alloc(u8, @intCast(usize, errorSize));
-            defer c_allocator.free(errorMessageBuffer);
-            glGetProgramInfoLog(shaderProgramId2, errorSize, &errorSize, errorMessageBuffer.ptr);
-            std.debug.warn("ERROR::SHADER::PROGRAM::LINK_FAILED\n{}", .{errorMessageBuffer.ptr});
-        }
-    }
-    defer glDeleteProgram(shaderProgramId2);
-
-    glDeleteShader(vertexShaderId);
-    glDeleteShader(fragmentShaderId);
-    glDeleteShader(fragmentShaderId2);
+    var shader1 = try Shader.init("vertexShader.glsl", "fragmentShader.glsl");
+    var shader2 = try Shader.init("vertexShader.glsl", "fragmentShader2.glsl");
+    defer shader1.destroy();
+    defer shader2.destroy();
 
     // var indices = [_]GLuint {
     //     0, 1, 3,
@@ -197,9 +102,10 @@ pub fn main() !u8 {
     glEnableVertexAttribArray(0); 
     
     var tri2vertices = [_]GLfloat {
-        -0.5,  0.5, 0.0,
-         0.5,   0.5,  0.0,
-        -0.5,   0.0,  0.0
+        // pos              // color
+        -0.5,  0.5,  0.0,   1.0, 0.0, 0.0,
+         0.5,  0.5,  0.0,   0.0, 1.0, 0.0,
+        -0.5,  0.0,  0.0,   0.0, 0.0, 1.0
     };
 
     var vbo2: u32 = undefined;
@@ -215,12 +121,16 @@ pub fn main() !u8 {
     glBindBuffer(GL_ARRAY_BUFFER, vbo2);
     glBufferData(GL_ARRAY_BUFFER, @sizeOf(@TypeOf(tri2vertices)), &tri2vertices, GL_STATIC_DRAW);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * @sizeOf(GLfloat), null);
-    glEnableVertexAttribArray(0); 
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * @sizeOf(GLfloat), null);
+    glEnableVertexAttribArray(0);
+    const offset = 3 * @sizeOf(f32);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * @sizeOf(GLfloat), @intToPtr(*c_void, offset));
+    glEnableVertexAttribArray(1);
 
     var running = true;
     var wireframeMode = false;
     var clearColor = [_]GLfloat { 0, 0, 0, 0 };
+
     while (running) {
         var event: SDL_Event = undefined;
         while (SDL_PollEvent(&event) != 0) {
@@ -230,18 +140,23 @@ pub fn main() !u8 {
                 else => {},
             }
         }
+
+        const seconds = @intToFloat(f32, SDL_GetTicks()) / 1000;
+        const greenValue = (math.sin(seconds) / 2) + 0.5;
+
         glClearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        glUseProgram(shaderProgramId);
+        shader1.use();
+        shader1.setFloat4("ourColor", 0.0, greenValue, 0.0, 1.0);
         glBindVertexArray(vao1);
         // glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, null);
         glDrawArrays(GL_TRIANGLES, 0, 3);
 
-        glUseProgram(shaderProgramId2);
+        shader2.use();
         glBindVertexArray(vao2);
         glDrawArrays(GL_TRIANGLES, 0, 3);
-        
+
         glBindVertexArray(0);
 
         SDL_GL_SwapWindow(mainWindow);
