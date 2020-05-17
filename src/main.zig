@@ -35,6 +35,14 @@ pub fn main() !u8 {
             return 3;
         };
     
+    {
+        const errCode = SDL_GL_MakeCurrent(mainWindow, mainContext);
+        if (errCode != 0) {
+            std.debug.warn("Failed to make window & context current.", .{});
+            return 4;
+        }
+    }
+
     if (SDL_GL_SetAttribute(.SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE) != 0
         or SDL_GL_SetAttribute(.SDL_GL_CONTEXT_MAJOR_VERSION, 3) != 0
         or SDL_GL_SetAttribute(.SDL_GL_CONTEXT_MINOR_VERSION, 3) != 0
@@ -115,11 +123,14 @@ pub fn main() !u8 {
     glDeleteShader(vertexShaderId);
     glDeleteShader(fragmentShaderId);
 
-    var vertexBuffer = [_]f32 {
-         0.5,  0.5, 0.0,
-         0.5, -0.5, 0.0,
-        -0.5, -0.5, 0.0,
-        -0.5,  0.5, 0.0
+    var vertices = [_]GLfloat {
+         0.25,  0.25, 0.0,
+         0.0,   0.0,  0.0,
+         0.5,   0.0,  0.0,
+
+        -0.25,  0.25, 0.0,
+         0.0,   0.0,  0.0,
+        -0.5,   0.0,  0.0
     };
 
     var indices = [_]GLuint {
@@ -142,22 +153,23 @@ pub fn main() !u8 {
     glBindVertexArray(vao);
 
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, @sizeOf(@TypeOf(vertexBuffer)), &vertexBuffer, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, @sizeOf(@TypeOf(vertices)), &vertices, GL_STATIC_DRAW);
     
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, @sizeOf(@TypeOf(indices)), &indices, GL_STATIC_DRAW);   
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * @sizeOf(f32), null);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * @sizeOf(GLfloat), null);
     glEnableVertexAttribArray(0); 
 
     var running = true;
-    var clearColor = [_]f32 { 0, 0, 0, 0 };
+    var wireframeMode = false;
+    var clearColor = [_]GLfloat { 0, 0, 0, 0 };
     while (running) {
         var event: SDL_Event = undefined;
         while (SDL_PollEvent(&event) != 0) {
             switch (event.type) {
                 SDL_QUIT => running = false,
-                SDL_KEYDOWN => handleKeyDowns(event.key.keysym.sym, &running, &clearColor),
+                SDL_KEYDOWN => handleKeyDowns(event.key.keysym.sym, &running, &clearColor, &wireframeMode),
                 else => {},
             }
         }
@@ -166,7 +178,8 @@ pub fn main() !u8 {
 
         glUseProgram(shaderProgramId);
         glBindVertexArray(vao);
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, null);
+        // glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, null);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
         glBindVertexArray(0);
         
         SDL_GL_SwapWindow(mainWindow);
@@ -179,7 +192,7 @@ fn getPointerBecauseZigIsWeird(thing: []const u8) ?[*]const u8 {
     return thing.ptr;
 }
 
-fn handleKeyDowns(key: SDL_Keycode, running: *bool, clearColor: []f32) void {
+fn handleKeyDowns(key: SDL_Keycode, running: *bool, clearColor: []GLfloat, wireframeMode: *bool) void {
     switch (key) {
         SDLK_ESCAPE => running.* = false,
         SDLK_r => {
@@ -199,6 +212,16 @@ fn handleKeyDowns(key: SDL_Keycode, running: *bool, clearColor: []f32) void {
             clearColor[1] = 0;
             clearColor[2] = 1;
             clearColor[3] = 1;
+        },
+        SDLK_p => {
+            // toggle wireframe
+            if (wireframeMode.*) {
+                glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+                wireframeMode.* = false;
+            } else {
+                glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+                wireframeMode.* = true;
+            }
         },
         else => {},
     }
