@@ -100,6 +100,26 @@ pub fn main() !u8 {
             glGetShaderInfoLog(fragmentShaderId, errorSize, &errorSize, errorMessageBuffer.ptr);
             std.debug.warn("ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n{}", .{errorMessageBuffer.ptr});
         }
+    }    
+    const fragmentShaderSource2 = @embedFile("fragmentShader2.glsl");
+    const fragmentShaderSourcePointer2: ?[*]const u8 = getPointerBecauseZigIsWeird(fragmentShaderSource2);
+    const fragmentShaderSourceLen2 = @intCast(GLint, fragmentShaderSource2.len);
+    const fragmentShaderId2 = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fragmentShaderId2, 1, &fragmentShaderSourcePointer2, &fragmentShaderSourceLen2);
+    glCompileShader(fragmentShaderId2);
+    
+    {
+        var success: i32 = 1;
+        glGetShaderiv(fragmentShaderId2, GL_COMPILE_STATUS, &success);
+        if (success == 0) {
+            var errorSize: GLint = undefined;
+            glGetShaderiv(fragmentShaderId2, GL_INFO_LOG_LENGTH, &errorSize);
+
+            const errorMessageBuffer = try c_allocator.alloc(u8, @intCast(usize, errorSize));
+            defer c_allocator.free(errorMessageBuffer);
+            glGetShaderInfoLog(fragmentShaderId2, errorSize, &errorSize, errorMessageBuffer.ptr);
+            std.debug.warn("ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n{}", .{errorMessageBuffer.ptr});
+        }
     }
 
     const shaderProgramId = glCreateProgram();
@@ -120,43 +140,80 @@ pub fn main() !u8 {
     }
     defer glDeleteProgram(shaderProgramId);
 
+    const shaderProgramId2 = glCreateProgram();
+    glAttachShader(shaderProgramId2, vertexShaderId);
+    glAttachShader(shaderProgramId2, fragmentShaderId2);
+    glLinkProgram(shaderProgramId2);
+    {
+        var success: i32 = 1;
+        glGetProgramiv(shaderProgramId2, GL_LINK_STATUS, &success);
+        if (success == 0) {
+            var errorSize: GLint = undefined;
+            glGetProgramiv(shaderProgramId2, GL_INFO_LOG_LENGTH, &errorSize);
+            const errorMessageBuffer = try c_allocator.alloc(u8, @intCast(usize, errorSize));
+            defer c_allocator.free(errorMessageBuffer);
+            glGetProgramInfoLog(shaderProgramId2, errorSize, &errorSize, errorMessageBuffer.ptr);
+            std.debug.warn("ERROR::SHADER::PROGRAM::LINK_FAILED\n{}", .{errorMessageBuffer.ptr});
+        }
+    }
+    defer glDeleteProgram(shaderProgramId2);
+
     glDeleteShader(vertexShaderId);
     glDeleteShader(fragmentShaderId);
+    glDeleteShader(fragmentShaderId2);
 
-    var vertices = [_]GLfloat {
+    // var indices = [_]GLuint {
+    //     0, 1, 3,
+    //     1, 2, 3
+    // };
+
+    // var ebo: u32 = undefined;
+    // glGenBuffers(1, &ebo);
+    // defer glDeleteBuffers(1, &ebo);
+
+    // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+    // glBufferData(GL_ELEMENT_ARRAY_BUFFER, @sizeOf(@TypeOf(indices)), &indices, GL_STATIC_DRAW);   
+    
+    var tri1vertices = [_]GLfloat {
          0.25,  0.25, 0.0,
          0.0,   0.0,  0.0,
          0.5,   0.0,  0.0,
+    };
 
-        -0.25,  0.25, 0.0,
-         0.0,   0.0,  0.0,
+    var vbo1: u32 = undefined;
+    glGenBuffers(1, &vbo1);
+    defer glDeleteBuffers(1, &vbo1);
+
+    var vao1: u32 = undefined;
+    glGenVertexArrays(1, &vao1);
+    defer glDeleteVertexArrays(1, &vao1);
+
+    glBindVertexArray(vao1);
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbo1);
+    glBufferData(GL_ARRAY_BUFFER, @sizeOf(@TypeOf(tri1vertices)), &tri1vertices, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * @sizeOf(GLfloat), null);
+    glEnableVertexAttribArray(0); 
+    
+    var tri2vertices = [_]GLfloat {
+        -0.5,  0.5, 0.0,
+         0.5,   0.5,  0.0,
         -0.5,   0.0,  0.0
     };
 
-    var indices = [_]GLuint {
-        0, 1, 3,
-        1, 2, 3
-    };
+    var vbo2: u32 = undefined;
+    glGenBuffers(1, &vbo2);
+    defer glDeleteBuffers(1, &vbo2);
 
-    var vbo: u32 = undefined;
-    glGenBuffers(1, &vbo);
-    defer glDeleteBuffers(1, &vbo);
+    var vao2: u32 = undefined;
+    glGenVertexArrays(1, &vao2);
+    defer glDeleteVertexArrays(1, &vao2);
 
-    var ebo: u32 = undefined;
-    glGenBuffers(1, &ebo);
-    defer glDeleteBuffers(1, &ebo);
+    glBindVertexArray(vao2);
 
-    var vao: u32 = undefined;
-    glGenVertexArrays(1, &vao);
-    defer glDeleteVertexArrays(1, &vao);
-
-    glBindVertexArray(vao);
-
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, @sizeOf(@TypeOf(vertices)), &vertices, GL_STATIC_DRAW);
-    
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, @sizeOf(@TypeOf(indices)), &indices, GL_STATIC_DRAW);   
+    glBindBuffer(GL_ARRAY_BUFFER, vbo2);
+    glBufferData(GL_ARRAY_BUFFER, @sizeOf(@TypeOf(tri2vertices)), &tri2vertices, GL_STATIC_DRAW);
 
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * @sizeOf(GLfloat), null);
     glEnableVertexAttribArray(0); 
@@ -177,11 +234,16 @@ pub fn main() !u8 {
         glClear(GL_COLOR_BUFFER_BIT);
 
         glUseProgram(shaderProgramId);
-        glBindVertexArray(vao);
+        glBindVertexArray(vao1);
         // glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, null);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-        glBindVertexArray(0);
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+
+        glUseProgram(shaderProgramId2);
+        glBindVertexArray(vao2);
+        glDrawArrays(GL_TRIANGLES, 0, 3);
         
+        glBindVertexArray(0);
+
         SDL_GL_SwapWindow(mainWindow);
     }
 
