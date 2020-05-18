@@ -74,6 +74,11 @@ pub const Shader = struct {
         glUniform4f(uniformLocation, value1, value2, value3, value4);
     }
 
+    pub fn setFloat(self: *Shader, name: []const u8, value: GLfloat) void {
+        const uniformLocation = glGetUniformLocation(self.programId, getPointerBecauseZigIsWeird(name));
+        glUniform1f(uniformLocation, value);
+    }
+
     fn logShaderProblem(id: GLuint, comptime msg: []const u8) !void {
         var errorSize: GLint = undefined;
         glGetShaderiv(id, GL_INFO_LOG_LENGTH, &errorSize);

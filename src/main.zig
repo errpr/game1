@@ -15,10 +15,16 @@ usingnamespace @import("./shader.zig");
 const DEFAULT_HEIGHT = 648;
 const DEFAULT_WIDTH = 1152;
 
+var COUNTER_FREQUENCY: u64 = undefined;
+var COUNTER_FREQUENCY_F64: f64 = undefined;
+
 pub fn main() !u8 {
 
     SDL_SetMainReady();
     defer SDL_Quit();
+
+    COUNTER_FREQUENCY = SDL_GetPerformanceFrequency();
+    COUNTER_FREQUENCY_F64 = @intToFloat(f64, COUNTER_FREQUENCY);
 
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) != 0) {
         std.debug.warn("Failed to initialize SDL: {}\n", .{SDL_GetError()});
@@ -130,6 +136,11 @@ pub fn main() !u8 {
     var running = true;
     var wireframeMode = false;
     var clearColor = [_]GLfloat { 0, 0, 0, 0 };
+    var lastCounter = SDL_GetPerformanceCounter();
+    
+    const monitorHertz = 60;
+    const targetGameHertz = monitorHertz / 2;
+    var targetSecondsPerFrame = 1.0 / @intToFloat(f64, targetGameHertz);
 
     while (running) {
         var event: SDL_Event = undefined;
@@ -154,15 +165,40 @@ pub fn main() !u8 {
         glDrawArrays(GL_TRIANGLES, 0, 3);
 
         shader2.use();
+        shader2.setFloat("offset", greenValue);
         glBindVertexArray(vao2);
         glDrawArrays(GL_TRIANGLES, 0, 3);
 
         glBindVertexArray(0);
 
+        // timing
+        const workCounter = SDL_GetPerformanceCounter();
+        const workSecondsElapsed = getSecondsElapsed(workCounter, lastCounter);
+        var frameCounter = workCounter;
+        var frameSecondsElapsed = workSecondsElapsed;
+        if (frameSecondsElapsed < targetSecondsPerFrame) {
+            const sleepMillis = @floatToInt(u32, 1000 * (targetSecondsPerFrame - frameSecondsElapsed)) - 1;
+            if (sleepMillis > 0) {
+                SDL_Delay(sleepMillis);
+            }
+
+            while (frameSecondsElapsed < targetSecondsPerFrame) {
+                frameCounter = SDL_GetPerformanceCounter();
+                frameSecondsElapsed = getSecondsElapsed(frameCounter, lastCounter);
+            }
+        } else {
+            std.debug.warn("Missed frame\n", .{});
+        }
+
+        lastCounter = SDL_GetPerformanceCounter();
         SDL_GL_SwapWindow(mainWindow);
     }
 
     return 0;
+}
+
+fn getSecondsElapsed(newCounter: u64, oldCounter: u64) f64 {
+    return @intToFloat(f64, newCounter - oldCounter) / COUNTER_FREQUENCY_F64;
 }
 
 fn getPointerBecauseZigIsWeird(thing: []const u8) ?[*]const u8 {
