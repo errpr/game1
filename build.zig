@@ -28,6 +28,7 @@ pub fn build(b: *Builder) void {
     exe.linkSystemLibrary("c");
     exe.addIncludeDir("src");
     exe.addCSourceFile("src/glad.c", &[_][]const u8{"-std=c99"});
+    exe.addCSourceFile("src/stb_image_impl.c", &[_][]const u8{"-std=c99"});
     exe.linkSystemLibrary("sdl2");
     exe.install();
 
